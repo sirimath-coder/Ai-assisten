@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sirimath AI | Quantum Chat Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <style>
+        :root { --primary: #00f2ff; --secondary: #7000ff; }
+        body { background: #050505; color: white; font-family: 'Inter', sans-serif; overflow: hidden; }
+
+        /* --- Powerful Loading Bar --- */
+        #loader {
+            position: fixed; inset: 0; background: #000; z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .load-container { width: 300px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; }
+        .load-bar { width: 0%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); box-shadow: 0 0 15px var(--primary); transition: width 0.4s ease; }
+
+        /* --- Live Background --- */
+        #canvas { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.4; }
+
+        /* --- Chat Interface --- */
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .chat-scroll::-webkit-scrollbar { width: 4px; }
+        .chat-scroll::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
+        
+        .message-ai { border-left: 3px solid var(--primary); background: rgba(0, 242, 255, 0.05); }
+        .message-user { border-right: 3px solid var(--secondary); background: rgba(112, 0, 255, 0.05); }
+        
+        @keyframes pulse-glow { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        .thinking { animation: pulse-glow 1.5s infinite; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <h2 class="text-2xl font-black tracking-tighter mb-4 animate__animated animate__pulse animate__infinite">SIRIMATH AI</h2>
+        <div class="load-container"><div id="load-progress" class="load-bar"></div></div>
+        <p class="mt-4 text-xs text-gray-500 uppercase tracking-widest">START UP .... 😉</p>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <div class="h-screen flex flex-col items-center justify-center p-4">
+        <div class="w-full max-w-4xl h-[85vh] glass rounded-3xl flex flex-col overflow-hidden animate__animated animate__zoomIn">
+            
+            <header class="p-6 border-b border-white/10 flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-white">SIRIMATH <span class="text-cyan-400">AI</span></h1>
+                    <p class="text-[10px] text-gray-500 uppercase tracking-widest">Model: SIRIMATH-24B</p>
+                </div>
+                <div class="flex gap-2">
+                    <div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e]"></div>
+                    <span class="text-xs text-gray-400">Live</span>
+                </div>
+            </header>
+
+            <div id="chat-box" class="flex-1 overflow-y-auto p-6 space-y-6 chat-scroll">
+                <div class="message-ai p-4 rounded-xl text-sm leading-relaxed max-w-[80%] animate__animated animate__fadeIn">
+                    Welcome to <b>Sirimath AI</b>. My neural circuits are synchronized. How can I assist your evolution today?
+                </div>
+            </div>
+
+            <div class="p-6 bg-black/20 border-t border-white/10">
+                <div class="relative flex items-center">
+                    <input type="text" id="userInput" placeholder="Ask anything..." 
+                        class="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-6 pr-16 focus:outline-none focus:border-cyan-500 transition-all text-sm">
+                    <button onclick="handleChat()" class="absolute right-3 p-2 bg-cyan-500 hover:bg-cyan-400 text-black rounded-xl transition-transform active:scale-90">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. Preloader Logic ---
+        let progress = 0;
+        const progressEl = document.getElementById('load-progress');
+        const loader = document.getElementById('loader');
+
+        const loadInterval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress >= 100) {
+                progress = 100;
+                clearInterval(loadInterval);
+                setTimeout(() => {
+                    loader.classList.add('animate__animated', 'animate__fadeOut');
+                    setTimeout(() => loader.style.display = 'none', 500);
+                }, 500);
+            }
+            progressEl.style.width = progress + '%';
+        }, 100);
+
+        // --- 2. Live Particles Background ---
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 1.5;
+                this.speedX = Math.random() * 1 - 0.5;
+                this.speedY = Math.random() * 1 - 0.5;
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.x < 0) this.x = canvas.width;
+                if (this.y > canvas.height) this.y = 0;
+                if (this.y < 0) this.y = canvas.height;
+            }
+            draw() {
+                ctx.fillStyle = '#00f2ff';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function init() {
+            for (let i = 0; i < 80; i++) particles.push(new Particle());
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => { p.update(); p.draw(); });
+            requestAnimationFrame(animate);
+        }
+        init(); animate();
+
+        // --- 3. Dolphin AI API Integration ---
+        async function dolphinai(question) {
+            try {
+                const { data } = await axios.post('https://chat.dphn.ai/api/chat', {
+                    messages: [{ role: 'user', content: question }],
+                    model: 'dolphinserver:24B',
+                    template: 'logical'
+                }, {
+                    headers: { origin: 'https://chat.dphn.ai', referer: 'https://chat.dphn.ai/' }
+                });
+                
+                return data.split('\n\n')
+                    .filter(line => line && line.startsWith('data: {'))
+                    .map(line => JSON.parse(line.substring(6)))
+                    .map(line => line.choices[0].delta.content)
+                    .join('');
+            } catch (error) { return "System Override: Unable to reach neural core."; }
+        }
+
+        async function handleChat() {
+            const input = document.getElementById('userInput');
+            const chatBox = document.getElementById('chat-box');
+            if (!input.value.trim()) return;
+
+            const userText = input.value;
+            input.value = '';
+
+            // Render User Message
+            chatBox.innerHTML += `<div class="message-user ml-auto p-4 rounded-xl text-sm max-w-[80%] animate__animated animate__fadeInRight">${userText}</div>`;
+            
+            // Thinking Indicator
+            const thinkingId = 'think-' + Date.now();
+            chatBox.innerHTML += `<div id="${thinkingId}" class="message-ai p-4 rounded-xl text-sm thinking max-w-[80%]">Processing query...</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Call API
+            const aiResponse = await dolphinai(userText);
+            document.getElementById(thinkingId).remove();
+
+            // Render AI Message with Typing Effect
+            const aiMsgId = 'ai-' + Date.now();
+            chatBox.innerHTML += `<div id="${aiMsgId}" class="message-ai p-4 rounded-xl text-sm leading-relaxed max-w-[80%]"></div>`;
+            
+            let i = 0;
+            const aiMsgDiv = document.getElementById(aiMsgId);
+            const typeTimer = setInterval(() => {
+                aiMsgDiv.innerHTML += aiResponse.charAt(i);
+                i++;
+                chatBox.scrollTop = chatBox.scrollHeight;
+                if (i >= aiResponse.length) clearInterval(typeTimer);
+            }, 15);
+        }
+    </script>
+</body>
+</html>
